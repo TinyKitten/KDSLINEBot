@@ -39,18 +39,18 @@ const textEventHandler = async (
   }
 
   const { replyToken } = event;
-  const { text } = event.message;
+  const { text: rawText } = event.message;
 
-  const [cmd, ...args] = text.split(/\n|\s/).map((t) => t.trim());
+  const [cmd, heading] = rawText.split(/\s|\n/);
+  const text = rawText.replace(cmd, "").replace(heading, "").trim();
 
   try {
     switch (cmd) {
       case "un":
       case "update_note":
-        const [heading, ...body] = args;
         const { error } = await supabase
           .from("bulletinboard")
-          .insert([{ heading, text: body.join("\n") }]);
+          .insert([{ heading, text }]);
         if (!error) {
           const response: TextMessage = {
             type: "text",
