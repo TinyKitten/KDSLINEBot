@@ -41,7 +41,7 @@ const textEventHandler = async (
   const { replyToken } = event;
   const { text } = event.message;
 
-  const [cmd, ...args] = text;
+  const [cmd, ...args] = text.split(" ");
 
   try {
     switch (cmd) {
@@ -65,6 +65,12 @@ const textEventHandler = async (
           await client.replyMessage(replyToken, response);
         }
         break;
+      default:
+        const response: TextMessage = {
+          type: "text",
+          text: "???",
+        };
+        await client.replyMessage(replyToken, response);
     }
   } catch (err) {
     const response: TextMessage = {
