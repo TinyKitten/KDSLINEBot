@@ -41,7 +41,7 @@ const textEventHandler = async (
   const { replyToken } = event;
   const { text } = event.message;
 
-  const [cmd, ...args] = text.split(" ");
+  const [cmd, ...args] = text.split(" ").map((t) => t.trim());
 
   try {
     switch (cmd) {
