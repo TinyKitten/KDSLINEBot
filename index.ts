@@ -41,7 +41,7 @@ const textEventHandler = async (
   const { replyToken } = event;
   const { text } = event.message;
 
-  const [cmd, ...args] = text.split(" ").map((t) => t.trim());
+  const [cmd, ...args] = text.split(/\n|\s/).map((t) => t.trim());
 
   try {
     switch (cmd) {
@@ -50,7 +50,7 @@ const textEventHandler = async (
         const [heading, ...body] = args;
         const { error } = await supabase
           .from("bulletinboard")
-          .insert([{ heading, text: body.join(" ") }]);
+          .insert([{ heading, text: body.join("\n") }]);
         if (!error) {
           const response: TextMessage = {
             type: "text",
