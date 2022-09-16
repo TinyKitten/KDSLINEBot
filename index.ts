@@ -43,6 +43,8 @@ const textEventHandler = async (
     return;
   }
 
+  await redisClient.connect();
+
   const { replyToken } = event;
   const { text: rawText } = event.message;
 
@@ -164,6 +166,8 @@ const textEventHandler = async (
     };
     await lineBotClient.replyMessage(replyToken, response);
   }
+
+  await redisClient.disconnect();
 };
 
 app.get("/", async (_: Request, res: Response): Promise<Response> => {
