@@ -101,7 +101,7 @@ const textEventHandler = async (
           type: "text",
           text: "OK",
         });
-
+        break;
       default: {
         const kvsState = await redisClient.hGetAll(userId);
         console.log(kvsState);
@@ -115,16 +115,16 @@ const textEventHandler = async (
               break;
             }
             await redisClient.hSet(userId, "heading", rawText.trim());
-            await lineBotClient.replyMessage(replyToken, {
-              type: "text",
-              text: `Okay! Continue with the following title: ${rawText.trim()}\nThen enter the body of the message:`,
-            });
-
             await redisClient.hSet(
               userId,
               "conversationState",
               "heading_passed"
             );
+
+            await lineBotClient.replyMessage(replyToken, {
+              type: "text",
+              text: `Okay! Continue with the following title: ${rawText.trim()}\nThen enter the body of the message:`,
+            });
             break;
           }
           case "heading_passed": {
