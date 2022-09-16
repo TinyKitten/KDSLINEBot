@@ -104,6 +104,7 @@ const textEventHandler = async (
 
       default: {
         const kvsState = await redisClient.hGetAll(userId);
+        console.log(kvsState);
         switch (kvsState.conversationState) {
           case "initial": {
             if (rawText.trim().length === 0) {
