@@ -43,8 +43,6 @@ const textEventHandler = async (
     return;
   }
 
-  await redisClient.connect();
-
   const {
     replyToken,
     source: { userId },
@@ -60,11 +58,11 @@ const textEventHandler = async (
       text: "Could not get userId",
     };
     await lineBotClient.replyMessage(replyToken, response);
-    await redisClient.disconnect();
     return;
   }
 
   try {
+    await redisClient.connect();
     const kvsState = await redisClient.hGetAll(userId);
     switch (cmd) {
       case "un":
