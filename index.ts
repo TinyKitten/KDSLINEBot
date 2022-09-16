@@ -67,9 +67,11 @@ const textEventHandler = async (
     switch (cmd) {
       case "sp":
       case "speech": {
+        const [_, ...ttsText] = rawText.split(/\s|\n/);
+
         const { error } = await supabase
           .from("speechRequest")
-          .insert([{ text: heading }]);
+          .insert([{ text: ttsText.join("") }]);
         if (!error) {
           const response: TextMessage = {
             type: "text",
