@@ -138,9 +138,7 @@ const textEventHandler = async (
             await redisClient.hSet(userId, "body", rawText.trim());
             await lineBotClient.replyMessage(replyToken, {
               type: "text",
-              text: `Okay! Continue with the following text:
-          ${rawText.trim()}
-          Thank you for using the KDS BOT!`,
+              text: `Okay! Continue with the following text:\n${rawText.trim()}\nThank you for using the KDS BOT!`,
             });
 
             await redisClient.hDel(userId, [
@@ -171,7 +169,7 @@ const textEventHandler = async (
     console.error(err);
     const response: TextMessage = {
       type: "text",
-      text: `ERROR\n${JSON.stringify(err)}`,
+      text: `ERROR`,
     };
     await lineBotClient.replyMessage(replyToken, response);
   }
