@@ -116,11 +116,7 @@ const textEventHandler = async (
             await redisClient.hSet(userId, "heading", rawText.trim());
             await lineBotClient.replyMessage(replyToken, {
               type: "text",
-              text: `Okay! Continue with the following title: ${rawText.trim()}`,
-            });
-            await lineBotClient.replyMessage(replyToken, {
-              type: "text",
-              text: `Then enter the body of the message:`,
+              text: `Okay! Continue with the following title: ${rawText.trim()}\nThen enter the body of the message:`,
             });
 
             await redisClient.hSet(
