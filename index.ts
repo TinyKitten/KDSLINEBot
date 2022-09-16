@@ -157,6 +157,7 @@ const textEventHandler = async (
       }
     }
   } catch (err) {
+    console.error(err);
     const response: TextMessage = {
       type: "text",
       text: `ERROR\n${JSON.stringify(err)}`,
