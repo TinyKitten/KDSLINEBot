@@ -91,16 +91,12 @@ const textEventHandler = async (
         await redisClient.hSet(userId, "body", "");
         const response: TextMessage = {
           type: "text",
-          text: "Okay! Please enter a title.",
+          text: "Okay! Please enter a title:",
         };
         await lineBotClient.replyMessage(replyToken, response);
         break;
       case "exit_guided":
-        await redisClient.hDel(replyToken, [
-          "conversationState",
-          "title",
-          "body",
-        ]);
+        await redisClient.hDel(userId, ["conversationState", "title", "body"]);
         await lineBotClient.replyMessage(replyToken, {
           type: "text",
           text: "OK",
@@ -120,8 +116,11 @@ const textEventHandler = async (
             await redisClient.hSet(userId, "heading", rawText.trim());
             await lineBotClient.replyMessage(replyToken, {
               type: "text",
-              text: `Okay! Continue with the following title:
-          ${rawText.trim()}`,
+              text: `Okay! Continue with the following title: ${rawText.trim()}`,
+            });
+            await lineBotClient.replyMessage(replyToken, {
+              type: "text",
+              text: `Then enter the body of the message:`,
             });
 
             await redisClient.hSet(
