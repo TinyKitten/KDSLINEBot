@@ -60,6 +60,7 @@ const textEventHandler = async (
       text: "Could not get userId",
     };
     await lineBotClient.replyMessage(replyToken, response);
+    await redisClient.disconnect();
     return;
   }
 
