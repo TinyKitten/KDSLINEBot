@@ -7,10 +7,11 @@ import {
   TextMessage,
   WebhookEvent,
 } from "@line/bot-sdk";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import express, { Application, Request, Response } from "express";
+import { createClient as createRedisClient } from "redis";
 
-const supabase = createClient(
+const supabase = createSupabaseClient(
   process.env.SUPABASE_URL || "",
   process.env.SUPABASE_KEY || ""
 );
@@ -27,9 +28,13 @@ const middlewareConfig: MiddlewareConfig = {
 
 const PORT = process.env.PORT || 3000;
 
-const client = new Client(clientConfig);
+const lineBotClient = new Client(clientConfig);
 
 const app: Application = express();
+
+const redisClient = createRedisClient({
+  url: process.env.REDIS_URL,
+});
 
 const textEventHandler = async (
   event: WebhookEvent
@@ -56,28 +61,107 @@ const textEventHandler = async (
             type: "text",
             text: "OK",
           };
-          await client.replyMessage(replyToken, response);
+          await lineBotClient.replyMessage(replyToken, response);
         } else {
           const response: TextMessage = {
             type: "text",
             text: `ERROR\n${JSON.stringify(error)}`,
           };
-          await client.replyMessage(replyToken, response);
+          await lineBotClient.replyMessage(replyToken, response);
         }
         break;
-      default:
+      case "guided_update_note":
+        await redisClient.hSet(replyToken, "conversationState", "initial");
+        await redisClient.hSet(replyToken, "heading", "");
+        await redisClient.hSet(replyToken, "body", "");
         const response: TextMessage = {
+          type: "text",
+          text: "Okay! Please enter a title.",
+        };
+        await lineBotClient.replyMessage(replyToken, response);
+        break;
+      case "exit_guided":
+        await redisClient.hDel(replyToken, [
+          "conversationState",
+          "title",
+          "body",
+        ]);
+        await lineBotClient.replyMessage(replyToken, {
+          type: "text",
+          text: "OK",
+        });
+
+      default: {
+        const kvsState = await redisClient.hGetAll(replyToken);
+        switch (kvsState.conversationState) {
+          case "initial": {
+            if (rawText.trim().length === 0) {
+              await lineBotClient.replyMessage(replyToken, {
+                type: "text",
+                text: `Oops! Can't leave the title empty!`,
+              });
+              break;
+            }
+            await redisClient.hSet(replyToken, "heading", rawText.trim());
+            await lineBotClient.replyMessage(replyToken, {
+              type: "text",
+              text: `Okay! Continue with the following title:
+          ${rawText.trim()}`,
+            });
+
+            await redisClient.hSet(
+              replyToken,
+              "conversationState",
+              "heading_passed"
+            );
+            break;
+          }
+          case "heading_passed": {
+            if (rawText.trim().length === 0) {
+              await lineBotClient.replyMessage(replyToken, {
+                type: "text",
+                text: `Oops! Can't empty the text!`,
+              });
+              break;
+            }
+            await redisClient.hSet(replyToken, "body", rawText.trim());
+            await lineBotClient.replyMessage(replyToken, {
+              type: "text",
+              text: `Okay! Continue with the following text:
+          ${rawText.trim()}
+          Thank you for using the KDS BOT!`,
+            });
+
+            await redisClient.hDel(replyToken, [
+              "conversationState",
+              "title",
+              "body",
+            ]);
+
+            const newKvsState = await redisClient.hGetAll(replyToken);
+            await supabase
+              .from("bulletinboard")
+              .insert([
+                { heading: newKvsState.heading, text: newKvsState.body },
+              ]);
+            break;
+          }
+        }
+
+        const unkResponse: TextMessage = {
           type: "text",
           text: "???",
         };
-        await client.replyMessage(replyToken, response);
+        await lineBotClient.replyMessage(replyToken, unkResponse);
+        break;
+      }
     }
   } catch (err) {
     const response: TextMessage = {
       type: "text",
       text: `ERROR\n${JSON.stringify(err)}`,
     };
-    await client.replyMessage(replyToken, response);
+    await lineBotClient.replyMessage(replyToken, response);
   }
 };
 
