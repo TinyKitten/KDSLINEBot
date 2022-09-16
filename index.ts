@@ -141,18 +141,17 @@ const textEventHandler = async (
               text: `Okay! Continue with the following text:\n${rawText.trim()}\nThank you for using the KDS BOT!`,
             });
 
-            await redisClient.hDel(userId, [
-              "conversationState",
-              "title",
-              "body",
-            ]);
-
             const newKvsState = await redisClient.hGetAll(userId);
             await supabase
               .from("bulletinboard")
               .insert([
                 { heading: newKvsState.heading, text: newKvsState.body },
               ]);
+            await redisClient.hDel(userId, [
+              "conversationState",
+              "title",
+              "body",
+            ]);
             break;
           }
         }
