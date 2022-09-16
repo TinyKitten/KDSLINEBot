@@ -33,7 +33,7 @@ const lineBotClient = new Client(clientConfig);
 const app: Application = express();
 
 const redisClient = createRedisClient({
-  url: process.env.REDIS_URL,
+  url: process.env.REDI_URL,
 });
 
 const textEventHandler = async (
@@ -45,11 +45,23 @@ const textEventHandler = async (
 
   await redisClient.connect();
 
-  const { replyToken } = event;
+  const {
+    replyToken,
+    source: { userId },
+  } = event;
   const { text: rawText } = event.message;
 
   const [cmd, heading] = rawText.split(/\s|\n/);
   const text = rawText.replace(cmd, "").replace(heading, "").trim();
+
+  if (!userId) {
+    const response: TextMessage = {
+      type: "text",
+      text: "Could not get userId",
+    };
+    await lineBotClient.replyMessage(replyToken, response);
+    return;
+  }
 
   try {
     switch (cmd) {
@@ -67,15 +79,15 @@ const textEventHandler = async (
         } else {
           const response: TextMessage = {
             type: "text",
-            text: `ERROR\n${JSON.stringify(error)}`,
+            text: "ERROR",
           };
           await lineBotClient.replyMessage(replyToken, response);
         }
         break;
       case "guided_update_note":
-        await redisClient.hSet(replyToken, "conversationState", "initial");
-        await redisClient.hSet(replyToken, "heading", "");
-        await redisClient.hSet(replyToken, "body", "");
+        await redisClient.hSet(userId, "conversationState", "initial");
+        await redisClient.hSet(userId, "heading", "");
+        await redisClient.hSet(userId, "body", "");
         const response: TextMessage = {
           type: "text",
           text: "Okay! Please enter a title.",
@@ -94,7 +106,7 @@ const textEventHandler = async (
         });
 
       default: {
-        const kvsState = await redisClient.hGetAll(replyToken);
+        const kvsState = await redisClient.hGetAll(userId);
         switch (kvsState.conversationState) {
           case "initial": {
             if (rawText.trim().length === 0) {
@@ -104,7 +116,7 @@ const textEventHandler = async (
               });
               break;
             }
-            await redisClient.hSet(replyToken, "heading", rawText.trim());
+            await redisClient.hSet(userId, "heading", rawText.trim());
             await lineBotClient.replyMessage(replyToken, {
               type: "text",
               text: `Okay! Continue with the following title:
@@ -112,7 +124,7 @@ const textEventHandler = async (
             });
 
             await redisClient.hSet(
-              replyToken,
+              userId,
               "conversationState",
               "heading_passed"
             );
@@ -126,7 +138,7 @@ const textEventHandler = async (
               });
               break;
             }
-            await redisClient.hSet(replyToken, "body", rawText.trim());
+            await redisClient.hSet(userId, "body", rawText.trim());
             await lineBotClient.replyMessage(replyToken, {
               type: "text",
               text: `Okay! Continue with the following text:
@@ -134,13 +146,13 @@ const textEventHandler = async (
           Thank you for using the KDS BOT!`,
             });
 
-            await redisClient.hDel(replyToken, [
+            await redisClient.hDel(userId, [
               "conversationState",
               "title",
               "body",
             ]);
 
-            const newKvsState = await redisClient.hGetAll(replyToken);
+            const newKvsState = await redisClient.hGetAll(userId);
             await supabase
               .from("bulletinboard")
               .insert([
