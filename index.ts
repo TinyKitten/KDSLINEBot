@@ -65,6 +65,7 @@ const textEventHandler = async (
   }
 
   try {
+    const kvsState = await redisClient.hGetAll(userId);
     switch (cmd) {
       case "un":
       case "update_note":
@@ -102,12 +103,18 @@ const textEventHandler = async (
           text: "OK",
         });
         break;
-      default:
+      default: {
+        if (!kvsState.conversationState) {
+          const unkResponse: TextMessage = {
+            type: "text",
+            text: "???",
+          };
+          await lineBotClient.replyMessage(replyToken, unkResponse);
+        }
         break;
+      }
     }
-    const kvsState = await redisClient.hGetAll(userId);
-    console.log(kvsState);
-    switch (kvsState?.conversationState) {
+    switch (kvsState.conversationState) {
       case "initial": {
         if (rawText.trim().length === 0) {
           await lineBotClient.replyMessage(replyToken, {
@@ -116,6 +123,7 @@ const textEventHandler = async (
           });
           break;
         }
+
         await redisClient.hSet(userId, "heading", rawText.trim());
         await redisClient.hSet(userId, "conversationState", "heading_passed");
 
@@ -133,6 +141,7 @@ const textEventHandler = async (
           });
           break;
         }
+
         await redisClient.hSet(userId, "body", rawText.trim());
         await lineBotClient.replyMessage(replyToken, {
           type: "text",
@@ -145,13 +154,6 @@ const textEventHandler = async (
           .insert([{ heading: newKvsState.heading, text: newKvsState.body }]);
         await redisClient.hDel(userId, ["conversationState", "title", "body"]);
         break;
-      }
-      default: {
-        const unkResponse: TextMessage = {
-          type: "text",
-          text: "???",
-        };
-        await lineBotClient.replyMessage(replyToken, unkResponse);
       }
     }
   } catch (err) {
