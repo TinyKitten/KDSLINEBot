@@ -65,8 +65,27 @@ const textEventHandler = async (
     await redisClient.connect();
     const kvsState = await redisClient.hGetAll(userId);
     switch (cmd) {
+      case "sp":
+      case "speech": {
+        const { error } = await supabase
+          .from("speechRequest")
+          .insert([{ text: heading }]);
+        if (!error) {
+          const response: TextMessage = {
+            type: "text",
+            text: "OK",
+          };
+          await lineBotClient.replyMessage(replyToken, response);
+          break;
+        }
+        const response: TextMessage = {
+          type: "text",
+          text: "ERROR",
+        };
+        await lineBotClient.replyMessage(replyToken, response);
+      }
       case "un":
-      case "update_note":
+      case "update_note": {
         const { error } = await supabase
           .from("bulletinboard")
           .insert([{ heading, text }]);
@@ -76,14 +95,15 @@ const textEventHandler = async (
             text: "OK",
           };
           await lineBotClient.replyMessage(replyToken, response);
-        } else {
-          const response: TextMessage = {
-            type: "text",
-            text: "ERROR",
-          };
-          await lineBotClient.replyMessage(replyToken, response);
+          break;
         }
+        const response: TextMessage = {
+          type: "text",
+          text: "ERROR",
+        };
+        await lineBotClient.replyMessage(replyToken, response);
         break;
+      }
       case "guided_update_note":
         await redisClient.hSet(userId, "conversationState", "initial");
         await redisClient.hSet(userId, "heading", "");
