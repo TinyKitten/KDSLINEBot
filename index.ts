@@ -33,7 +33,7 @@ const lineBotClient = new Client(clientConfig);
 const app: Application = express();
 
 const redisClient = createRedisClient({
-  url: process.env.REDIS_URL,
+  url: process.env.REDIS_TLS_URL,
 });
 
 const textEventHandler = async (
