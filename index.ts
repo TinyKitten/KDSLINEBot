@@ -52,16 +52,16 @@ const textEventHandler = async (
   const [cmd, heading] = rawText.split(/\s|\n/);
   const text = rawText.replace(cmd, "").replace(heading, "").trim();
 
-  if (!userId) {
-    const response: TextMessage = {
-      type: "text",
-      text: "Could not get userId",
-    };
-    await lineBotClient.replyMessage(replyToken, response);
-    return;
-  }
-
   try {
+    if (!userId) {
+      const response: TextMessage = {
+        type: "text",
+        text: "Could not get userId",
+      };
+      await lineBotClient.replyMessage(replyToken, response);
+      return;
+    }
+
     await redisClient.connect();
     const kvsState = await redisClient.hGetAll(userId);
     switch (cmd) {
