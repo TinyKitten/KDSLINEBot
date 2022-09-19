@@ -8,8 +8,14 @@ import {
   WebhookEvent,
 } from "@line/bot-sdk";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import bbt from "beebotte";
 import express, { Application, Request, Response } from "express";
 import { createClient as createRedisClient } from "redis";
+
+var bbtClient = new bbt.Connector({
+  apiKey: process.env.BBT_API_KEY,
+  secretKey: process.env.BBT_ACCESS_KEY,
+});
 
 const supabase = createSupabaseClient(
   process.env.SUPABASE_URL || "",
@@ -104,6 +110,50 @@ const textEventHandler = async (
           text: "ERROR",
         };
         await lineBotClient.replyMessage(replyToken, response);
+        break;
+      }
+      case "pt":
+      case "party": {
+        const channel = "praise";
+        const resource = "count";
+        bbtClient.read(
+          {
+            channel,
+            resource,
+            limit: 1,
+          },
+          async (readErr: Error, res: { data: number }[]) => {
+            if (readErr) {
+              console.error(readErr);
+              const response: TextMessage = {
+                type: "text",
+                text: "ERROR",
+              };
+              await lineBotClient.replyMessage(replyToken, response);
+              return;
+            }
+
+            bbtClient.write(
+              { channel, resource, data: res[0].data + 1 },
+              async (writeErr: Error) => {
+                if (writeErr) {
+                  console.error(writeErr);
+                  const response: TextMessage = {
+                    type: "text",
+                    text: "ERROR",
+                  };
+                  await lineBotClient.replyMessage(replyToken, response);
+                  return;
+                }
+                const response: TextMessage = {
+                  type: "text",
+                  text: "OK",
+                };
+                await lineBotClient.replyMessage(replyToken, response);
+              }
+            );
+          }
+        );
         break;
       }
       case "guided_update_note":
