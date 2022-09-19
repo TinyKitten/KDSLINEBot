@@ -107,6 +107,11 @@ const textEventHandler = async (
         break;
       }
       case "guided_update_note":
+        const alreadyStarted = await redisClient.exists(userId);
+        if (alreadyStarted) {
+          break;
+        }
+
         await redisClient.hSet(userId, "conversationState", "initial");
         await redisClient.hSet(userId, "heading", "");
         await redisClient.hSet(userId, "body", "");
@@ -136,14 +141,6 @@ const textEventHandler = async (
     }
     switch (kvsState.conversationState) {
       case "initial": {
-        if (rawText.trim().length === 0) {
-          await lineBotClient.replyMessage(replyToken, {
-            type: "text",
-            text: `Oops! Can't leave the title empty!`,
-          });
-          break;
-        }
-
         await redisClient.hSet(userId, "heading", rawText.trim());
         await redisClient.hSet(userId, "conversationState", "heading_passed");
 
@@ -154,14 +151,6 @@ const textEventHandler = async (
         break;
       }
       case "heading_passed": {
-        if (rawText.trim().length === 0) {
-          await lineBotClient.replyMessage(replyToken, {
-            type: "text",
-            text: `Oops! Can't empty the text!`,
-          });
-          break;
-        }
-
         await redisClient.hSet(userId, "body", rawText.trim());
         await lineBotClient.replyMessage(replyToken, {
           type: "text",
@@ -172,7 +161,7 @@ const textEventHandler = async (
         await supabase
           .from("bulletinboard")
           .insert([{ heading: newKvsState.heading, text: newKvsState.body }]);
-        await redisClient.hDel(userId, ["conversationState", "title", "body"]);
+        await redisClient.del(userId);
         break;
       }
     }
