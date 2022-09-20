@@ -42,6 +42,24 @@ const redisClient = createRedisClient({
   url: process.env.REDIS_URL,
 });
 
+const handleOK = (replyToken: string) =>
+  lineBotClient.replyMessage(replyToken, {
+    type: "text",
+    text: "OK",
+  });
+
+const handleInternalError = (replyToken: string, reason?: string) =>
+  lineBotClient.replyMessage(replyToken, {
+    type: "text",
+    text: reason ? `内部エラー: ${reason}` : "内部エラーが発生しました",
+  });
+
+const handleUnknown = (replyToken: string) =>
+  lineBotClient.replyMessage(replyToken, {
+    type: "text",
+    text: "ちょっと何言ってるか分からない",
+  });
+
 const textEventHandler = async (
   event: WebhookEvent
 ): Promise<MessageAPIResponseBase | undefined> => {
@@ -60,11 +78,7 @@ const textEventHandler = async (
 
   try {
     if (!userId) {
-      const response: TextMessage = {
-        type: "text",
-        text: "Could not get userId",
-      };
-      await lineBotClient.replyMessage(replyToken, response);
+      await handleInternalError(replyToken, "利用者IDを取得できませんでした");
       return;
     }
 
@@ -79,18 +93,9 @@ const textEventHandler = async (
           .from("speechRequest")
           .insert([{ text: ttsText.join("") }]);
         if (!error) {
-          const response: TextMessage = {
-            type: "text",
-            text: "OK",
-          };
-          await lineBotClient.replyMessage(replyToken, response);
-          break;
+          await handleOK(replyToken);
         }
-        const response: TextMessage = {
-          type: "text",
-          text: "ERROR",
-        };
-        await lineBotClient.replyMessage(replyToken, response);
+        await handleInternalError(replyToken);
       }
       case "un":
       case "update_note": {
@@ -98,18 +103,10 @@ const textEventHandler = async (
           .from("bulletinboard")
           .insert([{ heading, text }]);
         if (!error) {
-          const response: TextMessage = {
-            type: "text",
-            text: "OK",
-          };
-          await lineBotClient.replyMessage(replyToken, response);
+          await handleOK(replyToken);
           break;
         }
-        const response: TextMessage = {
-          type: "text",
-          text: "ERROR",
-        };
-        await lineBotClient.replyMessage(replyToken, response);
+        handleInternalError(replyToken);
         break;
       }
       case "pt":
@@ -125,11 +122,7 @@ const textEventHandler = async (
           async (readErr: Error, res: { data: number }[]) => {
             if (readErr) {
               console.error(readErr);
-              const response: TextMessage = {
-                type: "text",
-                text: "ERROR",
-              };
-              await lineBotClient.replyMessage(replyToken, response);
+              await handleInternalError(replyToken);
               return;
             }
 
@@ -138,18 +131,10 @@ const textEventHandler = async (
               async (writeErr: Error) => {
                 if (writeErr) {
                   console.error(writeErr);
-                  const response: TextMessage = {
-                    type: "text",
-                    text: "ERROR",
-                  };
-                  await lineBotClient.replyMessage(replyToken, response);
+                  await handleInternalError(replyToken);
                   return;
                 }
-                const response: TextMessage = {
-                  type: "text",
-                  text: "OK",
-                };
-                await lineBotClient.replyMessage(replyToken, response);
+                await handleOK(replyToken);
               }
             );
           }
@@ -167,24 +152,17 @@ const textEventHandler = async (
         await redisClient.hSet(userId, "body", "");
         const response: TextMessage = {
           type: "text",
-          text: "Okay! Please enter a title:",
+          text: "タイトルを入力してください:",
         };
         await lineBotClient.replyMessage(replyToken, response);
         break;
       case "exit_guided":
         await redisClient.hDel(userId, ["conversationState", "title", "body"]);
-        await lineBotClient.replyMessage(replyToken, {
-          type: "text",
-          text: "OK",
-        });
+        await handleOK(replyToken);
         break;
       default: {
         if (!kvsState.conversationState) {
-          const unkResponse: TextMessage = {
-            type: "text",
-            text: "???",
-          };
-          await lineBotClient.replyMessage(replyToken, unkResponse);
+          handleUnknown(replyToken);
         }
         break;
       }
@@ -196,7 +174,7 @@ const textEventHandler = async (
 
         await lineBotClient.replyMessage(replyToken, {
           type: "text",
-          text: `Okay! Continue with the following title: ${rawText.trim()}\nThen enter the body of the message:`,
+          text: "本文を入力してください:",
         });
         break;
       }
@@ -204,7 +182,7 @@ const textEventHandler = async (
         await redisClient.hSet(userId, "body", rawText.trim());
         await lineBotClient.replyMessage(replyToken, {
           type: "text",
-          text: `Okay! Continue with the following text:\n${rawText.trim()}\nThank you for using the KDS BOT!`,
+          text: "KDSタブレットに反映しました。ご利用ありがとうございました！",
         });
 
         const newKvsState = await redisClient.hGetAll(userId);
@@ -217,11 +195,7 @@ const textEventHandler = async (
     }
   } catch (err) {
     console.error(err);
-    const response: TextMessage = {
-      type: "text",
-      text: `ERROR`,
-    };
-    await lineBotClient.replyMessage(replyToken, response);
+    handleInternalError(replyToken);
   }
 
   await redisClient.disconnect();
