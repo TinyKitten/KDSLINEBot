@@ -98,7 +98,7 @@ const textEventHandler = async (
         await handleInternalError(replyToken);
       }
       case "un":
-      case "update_note": {
+      case "update": {
         const { error } = await supabase
           .from("bulletinboard")
           .insert([{ heading, text }]);
