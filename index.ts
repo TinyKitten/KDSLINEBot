@@ -141,7 +141,8 @@ const textEventHandler = async (
         );
         break;
       }
-      case "guided_update_note":
+      case "g":
+      case "guided":
         const alreadyStarted = await redisClient.exists(userId);
         if (alreadyStarted) {
           break;
