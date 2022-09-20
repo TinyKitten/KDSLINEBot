@@ -4,7 +4,6 @@ import {
   MessageAPIResponseBase,
   middleware,
   MiddlewareConfig,
-  TextMessage,
   WebhookEvent,
 } from "@line/bot-sdk";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
@@ -54,11 +53,18 @@ const handleInternalError = (replyToken: string, reason?: string) =>
     text: reason ? `内部エラー: ${reason}` : "内部エラーが発生しました",
   });
 
-const handleUnknown = (replyToken: string) =>
-  lineBotClient.replyMessage(replyToken, {
-    type: "text",
-    text: "ちょっと何言ってるか分からない",
-  });
+const handleUnknown = async (replyToken: string) => {
+  await lineBotClient.replyMessage(replyToken, [
+    {
+      type: "text",
+      text: "ちょっと何言ってるか分からない",
+    },
+    {
+      type: "text",
+      text: "help または h で使い方を確認できますよ",
+    },
+  ]);
+};
 
 const textEventHandler = async (
   event: WebhookEvent
@@ -97,7 +103,7 @@ const textEventHandler = async (
         }
         await handleInternalError(replyToken);
       }
-      case "un":
+      case "u":
       case "update": {
         const { error } = await supabase
           .from("bulletinboard")
@@ -109,7 +115,7 @@ const textEventHandler = async (
         handleInternalError(replyToken);
         break;
       }
-      case "pt":
+      case "p":
       case "party": {
         const channel = "praise";
         const resource = "count";
@@ -151,15 +157,21 @@ const textEventHandler = async (
         await redisClient.hSet(userId, "conversationState", "initial");
         await redisClient.hSet(userId, "heading", "");
         await redisClient.hSet(userId, "body", "");
-        const response: TextMessage = {
+        await lineBotClient.replyMessage(replyToken, {
           type: "text",
           text: "タイトルを入力してください:",
-        };
-        await lineBotClient.replyMessage(replyToken, response);
+        });
         break;
       case "exit_guided":
         await redisClient.hDel(userId, ["conversationState", "title", "body"]);
         await handleOK(replyToken);
+        break;
+      case "h":
+      case "help":
+        await lineBotClient.replyMessage(replyToken, {
+          type: "text",
+          text: "このBOTの使い方\n\n手動でKDSの表示内容を更新:\nupdate(またはu) タイトル 本文(省略可能)\n\n手順に沿ってKDSの表示内容を更新:\nguided(またはg)\n\nパーティ(開発者の頭上の照明が1680万色に光ります):\nparty(またはp)\n\nもう一度この案内を見たい:\nhelp(またはh)\n\n例:\nupdate タイトル\nu タイトル\n\nupdate タイトル 本文\nu タイトル 本文",
+        });
         break;
       default: {
         if (!kvsState.conversationState) {
